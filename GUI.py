@@ -144,7 +144,7 @@ def thread(i):
 def recognition():
     global switch
     switch = 1
-    text_box.delete("1.0", "end") 
+    
     start = time.time()
     end = time.time()
     global l
@@ -199,6 +199,7 @@ def Watch_go():
 
 def open_img():
     global n
+    text_box.delete("1.0", "end") 
     btn['state'] = tk.DISABLED
     num = [1, 2, 3, 4, 5] 
     if n != 0:
@@ -256,7 +257,6 @@ root.config(cursor="arrow")
 
 btn = Button(root, text='點我出現題目', command=lambda:[open_img()])
 btn.pack(fill="both", expand=True, padx=10, pady=10)
-
 btn2 = Button(root, text='有沒有注視', command=lambda:[Watch_go()])
 btn2.pack(fill="both", expand=True, padx=10, pady=10)
 
