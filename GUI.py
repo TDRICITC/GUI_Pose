@@ -122,7 +122,6 @@ def thread(i):
     success, img = camera.read()  # 从摄像头读取照片
     if success:
         try:
-            
             frame_im = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
             pil_im = Image.fromarray(frame_im)
             stream = BytesIO()
@@ -137,9 +136,7 @@ def thread(i):
             )
             result = json.loads(r.text)
             result = result["feature_list"][0]['pose_list'][0]['label']
-            #result = result['pose_list'][0]['label']
             l.append(result)
-            print(time.time())
         except Exception:
             pass
 
@@ -158,7 +155,7 @@ def recognition():
     count = 0
     threads = []
 
-    while count<5: 
+    while count < 5 and i < 30: 
         time.sleep(0.1)
         threads.append(threading.Thread(target = thread, args = (i,)))
         threads[i].start()
@@ -246,7 +243,9 @@ text_box = Text(
 )
 text_box.pack(expand=True,side='bottom')
 
-message = '''點擊按鈕，根據上面手勢三秒內做一樣的動作 '''
+text_box.configure(font=(20))
+
+message = ''' 請在綠框框內比手勢!! '''
 
 text_box.insert('end', message)
 panelB = Label(root, text = "跟著我比pose")  # initialize image panel
