@@ -9,7 +9,6 @@ import tkinter as tk
 from tkinter import *
 import cv2
 from PIL import Image,ImageTk
-import random
 from random import choice
 import cv2
 import time
@@ -30,7 +29,11 @@ def video_loop():
     cv2.putText(img, text=watch_where, org=(10,30),
                 fontFace= cv2.FONT_HERSHEY_SIMPLEX, fontScale=0.8, color=(0,0,0),
                 thickness=2, lineType=cv2.LINE_AA)
-    cv2.rectangle(img, (400, 10), (640, 230), (0, 255, 0), 2)
+
+    if switch == 0:            
+        cv2.rectangle(img, (400, 10), (640, 230), (0, 255, 0), 2)
+    else:
+        cv2.rectangle(img, (400, 10), (640, 230), (0, 0, 255), 2)
 
     if success:
 
@@ -76,6 +79,7 @@ def video_loop():
             if return_object['pose_rectangle']['top']+return_object['pose_rectangle']['height'] < 230 and return_object['pose_rectangle']['left']+return_object['pose_rectangle']['width'] > 400:
                 if switch == 0 and btn['state'] == 'disabled':
                     recognition_go()
+                    
 
         ###########
         cv2image = cv2.cvtColor(img, cv2.COLOR_BGR2RGBA)#转换颜色从BGR到RGBA
@@ -221,7 +225,7 @@ detector = HandDetector(detectionCon=0.7, maxHands=2)
 url = 'http://34.80.31.212/tdri/api/vision/analyze?return_features=pose'
 url2 = 'http://34.80.31.212/tdri/api/vision/analyze?return_features=face'
 wCam, hCam = 640, 480
-camera = cv2.VideoCapture(0)    #摄像头
+camera = cv2.VideoCapture(2)    #摄像头
 camera.set(3, wCam)
 camera.set(4, hCam)
 
