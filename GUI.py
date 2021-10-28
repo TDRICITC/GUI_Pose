@@ -18,17 +18,35 @@ from PIL import Image
 from io import BytesIO
 from cvzone.HandTrackingModule import HandDetector
 
+import mediapipe as mp
 
 def video_loop():
 
     global switch
-    success, img = camera.read()  # 从摄像头读取照片
+    global left
+    global right
+    global vertical
+
+    success, img = camera.read()  
     img = cv2.flip(img,1)
 
     hands, img = detector.findHands(img)
-    cv2.putText(img, text=watch_where, org=(10,30),
-                fontFace= cv2.FONT_HERSHEY_SIMPLEX, fontScale=0.8, color=(0,0,0),
-                thickness=2, lineType=cv2.LINE_AA)
+    cv2.putText(img, text=watch_where, org=(10,30), fontFace= cv2.FONT_HERSHEY_SIMPLEX, fontScale=0.6, color=(0,0,0), thickness=2, lineType=cv2.LINE_AA)
+    cv2.putText(img, 'up & down:'+'%.3f'%vertical, (10, 60), cv2.FONT_HERSHEY_PLAIN,1, (0, 0, 255), 1, cv2.LINE_AA)
+    cv2.putText(img, 'left:'+'%.3f'%right, (10, 80), cv2.FONT_HERSHEY_PLAIN,1, (0, 0, 255), 1, cv2.LINE_AA)
+    cv2.putText(img, 'right:'+'%.3f'%left, (10, 100), cv2.FONT_HERSHEY_PLAIN,1, (0, 0, 255), 1, cv2.LINE_AA)
+
+    
+    if switch_watch == 1:
+        results = face_mesh.process(img) 
+        
+        if results.multi_face_landmarks: 
+            for face_landmarks in results.multi_face_landmarks: 
+                
+                mp_drawing.draw_landmarks( image=img, landmark_list=face_landmarks, connections=mp_face_mesh.FACE_CONNECTIONS, landmark_drawing_spec=drawing_spec, connection_drawing_spec=drawing_spec1) 
+
+
+
 
     if switch == 0:            
         cv2.rectangle(img, (400, 10), (640, 230), (0, 255, 0), 2)
@@ -79,9 +97,17 @@ def video_loop():
             if return_object['pose_rectangle']['top']+return_object['pose_rectangle']['height'] < 230 and return_object['pose_rectangle']['left']+return_object['pose_rectangle']['width'] > 400:
                 if switch == 0 and btn['state'] == 'disabled':
                     recognition_go()
-                    
+
+        
 
         ###########
+        width = 640
+        height = 480
+        dim = (width, height)
+
+        # resize image
+        img = cv2.resize(img, dim, interpolation = cv2.INTER_AREA)
+
         cv2image = cv2.cvtColor(img, cv2.COLOR_BGR2RGBA)#转换颜色从BGR到RGBA
         current_image = Image.fromarray(cv2image)#将图像转换成Image对象
         imgtk = ImageTk.PhotoImage(image=current_image)
@@ -91,11 +117,19 @@ def video_loop():
        
 
 def Watch():
-    i = 0
+    i = 1
+    global switch_watch
     global watch_where
-    while i == 0:
+    global l2
+    global left
+    global right
+    global vertical
+    while switch_watch==1:
+        
         i = i+1
-        success, img = camera.read()  # 从摄像头读取照片
+        success, img = camera.read() 
+
+
         if success:
             try:
                 frame_im = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -110,20 +144,36 @@ def Watch():
                     url2,
                     files=files
                 )
-                result = json.loads(r.text)
-                result = result["feature_list"][0]['face_list'][0]['head_pose']
+                return_text = json.loads(r.text)
 
-                if abs(result['pitch']) < 15 and abs(result['yaw']) < 20:
-                    watch_where  =  'Watching'
+                result = return_text["feature_list"][0]['head_pose_list'][0]['looking']
+                left =  return_text["feature_list"][0]['head_pose_list'][0]['left_cheek_diff']
+                right = return_text["feature_list"][0]['head_pose_list'][0]['right_cheek_diff']
+                vertical = return_text["feature_list"][0]['head_pose_list'][0]['nor_vertical_diff']
+
+                if len(l2) >= 5:
+                    l2.pop(0)
+                    l2.append(result)
+                    if l2.count('focus')>=4:
+                        watch_where  = 'Looking'
+                    else:
+                        watch_where  = 'No Looking'
+
                 else:
-                    watch_where  =  'Not watching'
-                print(result)
+                    l2.append(result)
+                   
+                    if l2.count('focus')>=4:
+                        watch_where  = 'Looking'
+                    else:
+                        watch_where  = 'loading'
+                print(l2)
+                time.sleep(0.05)
             except Exception:
                 pass
 
 def thread(i):
     global l
-    success, img = camera.read()  # 从摄像头读取照片
+    success, img = camera.read()  
     if success:
         try:
             frame_im = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -199,6 +249,11 @@ def recognition_go():
     threading.Thread(target=recognition).start()
 
 def Watch_go():
+    global switch_watch
+    if switch_watch == 0:
+        switch_watch = 1
+    else:
+        switch_watch = 0
     threading.Thread(target=Watch).start()
 
 def open_img():
@@ -223,16 +278,29 @@ def open_img():
     
 detector = HandDetector(detectionCon=0.7, maxHands=2)
 url = 'http://34.80.31.212/tdri/api/vision/analyze?return_features=pose'
-url2 = 'http://34.80.31.212/tdri/api/vision/analyze?return_features=face'
+url2 = 'http://34.80.31.212/tdri/api/vision/analyze?return_features=head_pose'
 wCam, hCam = 640, 480
-camera = cv2.VideoCapture(2)    #摄像头
+
+camera = cv2.VideoCapture(0)    #相機
 camera.set(3, wCam)
 camera.set(4, hCam)
 
+mp_drawing = mp.solutions.drawing_utils 
+mp_face_mesh = mp.solutions.face_mesh 
+face_mesh = mp_face_mesh.FaceMesh( min_detection_confidence=0.5, min_tracking_confidence=0.5) 
+drawing_spec = mp_drawing.DrawingSpec(thickness=2, circle_radius=1) 
+drawing_spec1 = mp_drawing.DrawingSpec(thickness=2, circle_radius=1,color=(255,255,255)) 
+
+
 n = 0
 switch = 0
+switch_watch = 0
 watch_where = '1'
+left = 0
+right = 0
+vertical = 0
 l = []
+l2 = []
 
 root = Toplevel()
 root.title("opencv + tkinter")
@@ -261,7 +329,7 @@ root.config(cursor="arrow")
 
 btn = Button(root, text='點我出現題目', command=lambda:[open_img()])
 btn.pack(fill="both", expand=True, padx=10, pady=10)
-btn2 = Button(root, text='有沒有注視', command=lambda:[Watch_go()])
+btn2 = Button(root, text='有沒有注視(再按一次關閉)', command=lambda:[Watch_go()])
 btn2.pack(fill="both", expand=True, padx=10, pady=10)
 
 video_loop()
